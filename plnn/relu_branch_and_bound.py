@@ -73,7 +73,8 @@ def relu_bab(net, domain, eps=1e-3, decision_bound=None):
             # defined by n_mask_i
             nb_visited_states += 1
             if (nb_visited_states % 10) == 0:
-                print(f"Running Nb states visited: {nb_visited_states}")
+                pass
+                # print(f"Running Nb states visited: {nb_visited_states}")
             dom_lb, updated_mask = net.get_lower_bound(domain, n_mask_i)
             if len(n_masks) == 1:
                 # The parent domain could not be splitted.

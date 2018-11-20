@@ -3,7 +3,7 @@ import torch
 
 from torch import nn
 from plnn.modules import View
-from plnn.dual_network_linear_approximation import LooseDualNetworkApproximation
+# from plnn.dual_network_linear_approximation import LooseDualNetworkApproximation
 from plnn.network_linear_approximation import LinearizedNetwork
 
 class MIPNetwork:
@@ -47,7 +47,8 @@ class MIPNetwork:
                 if where == grb.GRB.Callback.MIPNODE:
                     nodeCount = model.cbGet(grb.GRB.Callback.MIPNODE_NODCNT)
                     if (nodeCount % 100) == 0:
-                        print(f"Running Nb states visited: {nodeCount}")
+                        # print(f"Running Nb states visited: {nodeCount}")
+                        pass
 
                 if where == grb.GRB.Callback.MIPSOL:
                     obj = model.cbGet(grb.GRB.Callback.MIPSOL_OBJ)
@@ -69,7 +70,8 @@ class MIPNetwork:
                 if where == grb.GRB.Callback.MIPNODE:
                     nodeCount = model.cbGet(grb.GRB.Callback.MIPNODE_NODCNT)
                     if (nodeCount % 100) == 0:
-                        print(f"Running Nb states visited: {nodeCount}")
+                        pass
+                        # print(f"Running Nb states visited: {nodeCount}")
 
         self.model.optimize(early_stop_cb)
         nb_visited_states = self.model.nodeCount

@@ -101,7 +101,8 @@ def bab(net, domain, eps=1e-3, decision_bound=None, smart_branching=None):
         for ndom_i in ndoms:
             nb_visited_states += 1
             if (nb_visited_states % 10) == 0:
-                print(f"Running Nb states visited: {nb_visited_states}")
+                pass
+                # print(f"Running Nb states visited: {nb_visited_states}")
             # Find the upper and lower bounds on the minimum in dom_i
             dom_i = domain_lb + domain_width * ndom_i
             dom_ub_point, dom_ub = net.get_upper_bound(dom_i)

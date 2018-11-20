@@ -22,7 +22,7 @@ def main():
                         help='What proportion to use.')
     parser.add_argument('--sym_bounds', action='store_true')
     parser.add_argument('--use_obj_function', action='store_true')
-    parser.add_argument('--interval-analysis', action='store_true')
+    parser.add_argument('--bound_type', type=str)
     parser.add_argument('--modulo', type=int, default=1,
                         help="Use this to specify which part of the samples to run in this process."
                         "This process will only run those for which idx %% modulo == modulo_arg ")
@@ -40,7 +40,7 @@ def main():
     layers = load_mat_network(args.mat_infile)
 
     if args.result_folder is None:
-        verif_result_folder = f'weights/{args.dataset}_verif_result'
+        verif_result_folder = "weights/{}_verif_result".format(args.dataset)
     else:
         verif_result_folder = args.result_folder
     if not os.path.exists(verif_result_folder):
@@ -82,8 +82,9 @@ def main():
         output = test_net(var_data)
         pred = output.data.max(1, keepdim=True)[1]
         correct += pred.eq(target.view_as(pred)).sum()
+    correct = correct.item()
     accuracy = 100. * correct / len(test_dataset)
-    print(f"Nominal accuracy on test set: {accuracy.2f} %")
+    print("Nominal accuracy on test set: {0:.2f} %".format(accuracy))
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
@@ -169,17 +170,22 @@ def main():
     neg_layer.weight.data.fill_(-1)
     neg_layer.bias.data.fill_(0)
     total_time = 0
+    total_build_time = 0
+    total_solve_time = 0
     total_solves = 0
+    total_robust = 0
+    total_nonrobust = 0
+    total_timeout = 0
     for sp_idx, (data, target) in enumerate(test_loader):
         if sp_idx not in to_process:
             continue
 
-        example_res_file = verif_result_folder + f"/{sp_idx}_sample.txt"
+        example_res_file = verif_result_folder + "/{}_sample.txt".format(sp_idx)
         if os.path.isfile(example_res_file):
             continue
 
 
-        print(f"{time.ctime()} \tExample {sp_idx} starting")
+        print("{} \tExample {} starting".format(time.ctime(), sp_idx))
         build_start = time.time()
         net_layers = layers
 
@@ -208,43 +214,50 @@ def main():
                                  neg_layer]
 
 
-        print(f"{time.ctime()} \tExample {sp_idx} has spec.")
+        print("{} \tExample {} has spec.".format(time.ctime(), sp_idx))
         mip_network = MIPNetwork(verif_layers)
         mip_network.setup_model(domain,
                                 sym_bounds=args.sym_bounds,
                                 use_obj_function=args.use_obj_function,
-                                bounds=args.interval_analysis)
+                                bounds=args.bound_type)
         build_end = time.time()
         build_time = build_end-build_start
 
-        print(f"{time.ctime()} \tExample {sp_idx} has MIP setup in {build_time} seconds.")
+        print("{} \tExample {} has MIP setup in {} seconds.".format(time.ctime(), sp_idx, build_time))
         solve_start = time.time()
-        sat, solution, nb_visited_states = mip_network.solve(domain, timeout=1200)
+        sat, solution, nb_visited_states = mip_network.solve(domain, timeout=10)
         solve_end = time.time()
         solve_time = solve_end-solve_start
+        print("{} \tExample {} has solve in {} seconds.".format(time.ctime(), sp_idx, solve_time))
         solve_and_build = build_time + solve_time
         total_time += solve_and_build
+        total_build_time += build_time
+        total_solve_time += solve_time
         total_solves += 1
 
-        if sat is False:
-            print(f"{time.ctime()} \tExample {sp_idx} is Robust.")
+        if sat is False:	
+            total_robust += 1
+            print("{} \tExample {} is Robust.".format(time.ctime(), sp_idx))
             with open(example_res_file, 'w') as res_file:
                 res_file.write('Robust\n')
-                res_file.write(f'{solve_and_build}\n')
+                res_file.write('{}\n'.format(build_time))
+                res_file.write('{}\n'.format(solve_time))
         elif sat is True:
-            print(f"{time.ctime()} \tExample {sp_idx} is not Robust.")
-            adv_example = Variable(solution[0].view(1, -1), volatile=True)
-            pred_on_adv = test_net(adv_example)
-            print(f"{time.ctime()} \tPredictions: {pred_on_adv.data}")
-            print(f"{time.ctime()} \tGT is: {target}")
+            total_nonrobust += 1
+            print("{} \tExample {} is not Robust.".format(time.ctime(), sp_idx))
+            # adv_example = Variable(solution[0].view(1, -1), volatile=True)
+            # pred_on_adv = test_net(adv_example)
+            # print("{} \tPredictions: {}".format(time.ctime(), pred_on_adv.data))
+            # print("{} \tGT is: {}".format(time.ctime(), target))
             with open(example_res_file, 'w', encoding='utf-8') as res_file:
                 res_file.write('NonRobust\n')
-                res_file.write(f'{solve_and_build}\n')
-                sol_str = f'Input: {solution[0]}\n'
-                res_file.write(sol_str)
-                res_file.write(f'Pred on adv: {pred_on_adv.data}\n')
-                gt_str = f'GT is : {target[0]}\n'
-                res_file.write(gt_str)
+                res_file.write('{}\n'.format(build_time))
+                res_file.write('{}\n'.format(solve_time))
+                # sol_str = 'Input: {}\n'.format(solution[0])
+                # res_file.write(sol_str)
+                # res_file.write('Pred on adv: {}\n'.format(pred_on_adv.data))
+                # gt_str = 'GT is : {}\n'.format(target[0])
+                # res_file.write(gt_str)
 
 
             if args.dump_images is True:
@@ -256,7 +269,7 @@ def main():
 
                 all_preds_on_path = test_net(all_on_path)
                 py_all_preds = all_preds_on_path.data.numpy().tolist()
-                preds_path = verif_result_folder + f"/{sp_idx}_vals.json"
+                preds_path = verif_result_folder + "/{}_vals.json".format(sp_idx)
                 with open(preds_path, 'w') as preds_file:
                   json.dump(py_all_preds, preds_file)
 
@@ -264,18 +277,32 @@ def main():
                 orig_data = data.view(28, 28)
                 adv_data = solution[0].view(28, 28)
 
-                orig_path = verif_result_folder + f"/{sp_idx}_original.png"
-                adv_path = verif_result_folder + f"/{sp_idx}_adversarial.png"
+                orig_path = verif_result_folder + "/{}_original.png".format(sp_idx)
+                adv_path = verif_result_folder + "/{}_adversarial.png".format(sp_idx)
                 torchvision.utils.save_image(orig_data, orig_path)
                 torchvision.utils.save_image(adv_data, adv_path)
         elif sat is None:
-            print(f"{time.ctime()} \t Example {sp_idx} failure.")
+            total_timeout += 1
+            print("{} \t Example {} failure.".format(time.ctime(), sp_idx))
             with open(example_res_file, 'w') as res_file:
                 res_file.write('Verification Failure\n')
+                res_file.write('{}\n'.format(build_time))
+                res_file.write('{}\n'.format(solve_time))
 
-        print("\n\n")
+        print("")
 
-    print("Summary: {}".format(total_time/total_solves))
+    final_res_file = verif_result_folder + "/summary_mod{}_arg{}.txt".format(args.modulo, args.modulo_arg)
+    print("Average Build Time Summary: {}".format(total_build_time/total_solves))
+    print("Average Solve Time Summary: {}".format(total_solve_time/total_solves))
+    print("Average Solve + Build Time Summary: {}".format(total_time/total_solves))
+    print("Robust: {}, NonRobust: {}, Timeout: {}".format(total_robust, total_nonrobust, total_timeout))
+    with open(final_res_file, 'w') as res_file:
+        res_file.write('AvgBuild,{}\n'.format(total_build_time/total_solves))
+        res_file.write('AvgSolve,{}\n'.format(total_solve_time/total_solves))
+        res_file.write('AvgTotal,{}\n'.format(total_time/total_solves))
+        res_file.write('Robust,{}\n'.format(total_robust))
+        res_file.write('NonRobust,{}\n'.format(total_nonrobust))
+        res_file.write('Timeout,{}\n'.format(total_timeout))
 
 if __name__ == '__main__':
     main()

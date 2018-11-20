@@ -34,7 +34,8 @@ class BlackBoxNetwork:
                 if where == grb.GRB.Callback.MIPNODE:
                     nodeCount = model.cbGet(grb.GRB.Callback.MIPNODE_NODCNT)
                     if (nodeCount % 100) == 0:
-                        print(f"Running Nb states visited: {nodeCount}")
+                        pass
+                        # print(f"Running Nb states visited: {nodeCount}")
 
                 if where == grb.GRB.Callback.MIPSOL:
                     obj = model.cbGet(grb.GRB.Callback.MIPSOL_OBJ)
@@ -56,8 +57,8 @@ class BlackBoxNetwork:
                 if where == grb.GRB.Callback.MIPNODE:
                     nodeCount = model.cbGet(grb.GRB.Callback.MIPNODE_NODCNT)
                     if (nodeCount % 100) == 0:
-                        print(f"Running Nb states visited: {nodeCount}")
-
+                        # print(f"Running Nb states visited: {nodeCount}")
+                        pass
         self.model.optimize(early_stop_cb)
         nb_visited_states = self.model.nodeCount
 
