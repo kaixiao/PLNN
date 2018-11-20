@@ -82,8 +82,8 @@ def main():
         output = test_net(var_data)
         pred = output.data.max(1, keepdim=True)[1]
         correct += pred.eq(target.view_as(pred)).sum()
-    accuracy = 100 * correct / len(test_dataset)
-    print(f"Nominal accuracy on test set: {accuracy} %")
+    accuracy = 100. * correct / len(test_dataset)
+    print(f"Nominal accuracy on test set: {accuracy.2f} %")
 
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
@@ -168,6 +168,8 @@ def main():
     neg_layer = nn.Linear(1, 1)
     neg_layer.weight.data.fill_(-1)
     neg_layer.bias.data.fill_(0)
+    total_time = 0
+    total_solves = 0
     for sp_idx, (data, target) in enumerate(test_loader):
         if sp_idx not in to_process:
             continue
@@ -178,7 +180,7 @@ def main():
 
 
         print(f"{time.ctime()} \tExample {sp_idx} starting")
-        start = time.time()
+        build_start = time.time()
         net_layers = layers
 
         data_lb = data - args.adv_perturb
@@ -211,18 +213,24 @@ def main():
         mip_network.setup_model(domain,
                                 sym_bounds=args.sym_bounds,
                                 use_obj_function=args.use_obj_function,
-                                interval_analysis=args.interval_analysis)
+                                bounds=args.interval_analysis)
+        build_end = time.time()
+        build_time = build_end-build_start
 
-        print(f"{time.ctime()} \tExample {sp_idx} has MIP setup.")
-        sat, solution, nb_visited_states = mip_network.solve(domain, timeout=3600)
-        end = time.time()
-
+        print(f"{time.ctime()} \tExample {sp_idx} has MIP setup in {build_time} seconds.")
+        solve_start = time.time()
+        sat, solution, nb_visited_states = mip_network.solve(domain, timeout=1200)
+        solve_end = time.time()
+        solve_time = solve_end-solve_start
+        solve_and_build = build_time + solve_time
+        total_time += solve_and_build
+        total_solves += 1
 
         if sat is False:
             print(f"{time.ctime()} \tExample {sp_idx} is Robust.")
             with open(example_res_file, 'w') as res_file:
                 res_file.write('Robust\n')
-                res_file.write(f'{end-start}\n')
+                res_file.write(f'{solve_and_build}\n')
         elif sat is True:
             print(f"{time.ctime()} \tExample {sp_idx} is not Robust.")
             adv_example = Variable(solution[0].view(1, -1), volatile=True)
@@ -231,7 +239,7 @@ def main():
             print(f"{time.ctime()} \tGT is: {target}")
             with open(example_res_file, 'w', encoding='utf-8') as res_file:
                 res_file.write('NonRobust\n')
-                res_file.write(f'{end-start}\n')
+                res_file.write(f'{solve_and_build}\n')
                 sol_str = f'Input: {solution[0]}\n'
                 res_file.write(sol_str)
                 res_file.write(f'Pred on adv: {pred_on_adv.data}\n')
@@ -267,6 +275,7 @@ def main():
 
         print("\n\n")
 
+    print("Summary: {}".format(total_time/total_solves))
 
 if __name__ == '__main__':
     main()

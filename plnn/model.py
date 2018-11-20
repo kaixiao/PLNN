@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 from plnn.modules import View
 from plnn.network_linear_approximation import LinearizedNetwork
 from torch import nn
-
+import numpy as np
 
 class AcasNetwork:
     def __init__(self, rpx_infile):
@@ -569,7 +569,7 @@ def load_mat_network(mat_file):
         new_linear = nn.Linear(feat_from, feat_to, bias=True)
 
         new_linear.weight.data.copy_(torch.FloatTensor(linear_weight.T))
-        new_linear.bias.data.copy_(torch.FloatTensor(linear_bias))
+        new_linear.bias.data.copy_(torch.FloatTensor(np.squeeze(linear_bias)))
 
         all_layers.append(new_linear)
         all_layers.append(nn.ReLU())
