@@ -225,7 +225,7 @@ def main():
 
         print("{} \tExample {} has MIP setup in {} seconds.".format(time.ctime(), sp_idx, build_time))
         solve_start = time.time()
-        sat, solution, nb_visited_states = mip_network.solve(domain, timeout=10)
+        sat, solution, nb_visited_states = mip_network.solve(domain, timeout=1200)
         solve_end = time.time()
         solve_time = solve_end-solve_start
         print("{} \tExample {} has solve in {} seconds.".format(time.ctime(), sp_idx, solve_time))

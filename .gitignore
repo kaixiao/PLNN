@@ -5,3 +5,6 @@ venv
 *.egg-info
 *.pyc
 gurobi.log
+test
+weights
+# iclr_results
