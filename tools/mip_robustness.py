@@ -289,7 +289,8 @@ def main():
                 res_file.write('{}\n'.format(build_time))
                 res_file.write('{}\n'.format(solve_time))
 
-        print("")
+        print("AvgBuild: {:0.2f}, AvgSolve: {:0.2f}, Robust: {}, NonRobust: {}, Timeout: {}".format(
+               total_build_time/total_solves, total_solve_time/total_solves, total_robust, total_nonrobust, total_timeout))
 
     final_res_file = verif_result_folder + "/summary_mod{}_arg{}.txt".format(args.modulo, args.modulo_arg)
     print("Average Build Time Summary: {}".format(total_build_time/total_solves))
