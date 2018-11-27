@@ -22,6 +22,7 @@ def main():
                         help='What proportion to use.')
     parser.add_argument('--sym_bounds', action='store_true')
     parser.add_argument('--use_obj_function', action='store_true')
+    parser.add_argument('--above_thousand', action='store_true')
     parser.add_argument('--bound_type', type=str)
     parser.add_argument('--modulo', type=int, default=1,
                         help="Use this to specify which part of the samples to run in this process."
@@ -100,6 +101,9 @@ def main():
         ids_list = range(len(test_dataset))
     to_process = [idx for cnt, idx in enumerate(ids_list) if cnt % args.modulo == args.modulo_arg]
 
+    if args.above_thousand:
+        print("====================== ONLY DOING IMAGES ABOVE 1000 ====================")
+        to_process = [i for i in to_process if i > 1000]
     # #### DEBUG
     # # with open(verif_result_folder + '/incorrect_ids.txt', 'r') as inc_ids:
     # #     all_inc_ids = []
